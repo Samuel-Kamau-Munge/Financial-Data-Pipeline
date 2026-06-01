@@ -1,0 +1,94 @@
+version: "3.8"
+
+services:
+  zookeeper:
+    platform: linux/amd64
+    image: confluentinc/cp-zookeeper:7.2.1
+    user: "0"
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    platform: linux/amd64
+    image: confluentinc/cp-kafka:7.2.1
+    user: "0"
+    depends_on:
+      - zookeeper
+    restart: always
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://host.docker.internal:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: financial
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+
+  airflow:
+    image: apache/airflow:2.5.1
+    user: "0"
+    restart: always
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres:5432/financial
+      AIRFLOW_UID: 50000
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+    ports:
+      - "8080:8080"
+
+  producer:
+    build:
+      context: .
+      dockerfile: services/producer/Dockerfile
+    depends_on:
+      - kafka
+    volumes:
+      - ./services/producer:/app
+
+  consumer:
+    build:
+      context: .
+      dockerfile: services/consumer/Dockerfile
+    depends_on:
+      - kafka
+      - postgres
+    volumes:
+      - ./services/consumer:/app
+
+  ingest:
+    build:
+      context: .
+      dockerfile: services/producer/Dockerfile.ingest
+    depends_on:
+      - postgres
+    volumes:
+      - ./services/producer:/app
+      - ./sql:/sql
+    working_dir: /app
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@postgres:5432/financial
+      - SOURCE_FILE=/app/Accounts-Receivable.xlsx
+    restart: "no"
+
+# ...keep minimal for now

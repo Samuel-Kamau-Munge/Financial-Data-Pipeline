@@ -1,0 +1,10 @@
+replicaCount: 1
+image:
+  repository: yourrepo/financial-service
+  tag: latest
+
+postgres:
+  enabled: true
+
+kafka:
+  enabled: false  # recommend using operator in prod

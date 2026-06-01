@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "start-local",
+      "type": "shell",
+      "command": "make start-local",
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+pandas
+pydantic
+SQLAlchemy
+psycopg2-binary
+confluent-kafka
+apache-airflow
+dbt-core
+dbt-postgres
+kubernetes
+pyyaml
+fastapi
+uvicorn
+openpyxl
